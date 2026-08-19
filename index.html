@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Dig Demo</title>
+
+<style>
+  * {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  html,
+  body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #151515;
+    font-family: Arial, Helvetica, sans-serif;
+    color: white;
+  }
+
+  body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  #gameWrap {
+    position: relative;
+    width: min(100vw, 520px);
+    height: 100vh;
+    max-height: 900px;
+    overflow: hidden;
+    background: #8fd3ff;
+  }
+
+  canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    touch-action: none;
+  }
+
+  #hud {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    display: flex;
+    justify-content: space-between;
+    gap: 6px;
+    z-index: 5;
+    pointer-events: none;
+  }
+
+  .hudBox {
+    background: rgba(0, 0, 0, 0.72);
+    border-radius: 10px;
+    padding: 8px 10px;
+    font-size: 14px;
+    font-weight: bold;
+    white-space: nowrap;
+  }
+
+  #message {
+    position: absolute;
+    top: 58px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 8px 14px;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.72);
+    font-size: 14px;
+    font-weight: bold;
+    opacity: 0;
+    transition: opacity 0.2s;
+    z-index: 6;
+    pointer-events: none;
+  }
+
+  #message.show {
+    opacity: 1;
+  }
+
+  #controls {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    width: 160px;
+    height: 160px;
+    z-index: 8;
+  }
+
+  .controlBtn {
+    position: absolute;
+    width: 52px;
+    height: 52px;
+    border: none;
+    border-radius: 14px;
+    background: rgba(0, 0, 0, 0.62);
+    color: white;
+    font-size: 24px;
+    font-weight: bold;
+    box-shadow: 0 3px 0 rgba(0, 0, 0, 0.45);
+    touch-action: none;
+  }
+
+  .controlBtn:active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+  }
+
+  #upBtn {
+    left: 54px;
+    top: 0;
+  }
+
+  #leftBtn {
+    left: 0;
+    top: 54px;
+  }
+
+  #rightBtn {
+    right: 0;
+    top: 54px;
+  }
+
+  #downBtn {
+    left: 54px;
+    bottom: 0;
+  }
+
+  #shopButton {
+    position: absolute;
+    right: 16px;
+    bottom: 20px;
+    z-index: 8;
+    border: none;
+    border-radius: 14px;
+    padding: 15px 18px;
+    background: #f4c542;
+    color: #1b1b1b;
+    font-weight: 900;
+    font-size: 16px;
+    box-shadow: 0 4px 0 #9b7b16;
+  }
+
+  #shopButton:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 #9b7b16;
+  }
+
+  #shopPanel {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    background: rgba(0, 0, 0, 0.82);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+  }
+
+  #shopPanel.open {
+    display: flex;
+  }
+
+  .shopCard {
+    width: min(100%, 390px);
+    background: #272727;
+    border-radius: 18px;
+    padding: 20px;
+    box-shadow: 0 10px 35px rgba(0, 0, 0, 0.5);
+  }
+
+  .shopCard h2 {
+    margin: 0 0 6px;
+  }
+
+  .shopCard p {
+    margin-top: 0;
+    color: #bbbbbb;
+  }
+
+  .upgrade {
+    width: 100%;
+    border: none;
+    border-radius: 12px;
+    padding: 14px;
+    margin-top: 10px;
+    background: #3c3c3c;
+    color: white;
+    text-align: left;
+    font-size: 15px;
+  }
+
+  .upgrade strong {
+    display: block;
+    font-size: 17px;
+    margin-bottom: 4px;
+  }
+
+  .upgrade:active {
+    background: #515151;
+  }
+
+  #closeShop {
+    width: 100%;
+    border: none;
+    border-radius: 12px;
+    padding: 14px;
+    margin-top: 18px;
+    background: #d9534f;
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+  }
+
+  @media (min-width: 800px) {
+    #controls {
+      opacity: 0.8;
+    }
+  }
+</style>
+</head>
+
+<body>
+
+<div id="gameWrap">
+
+  <canvas id="game"></canvas>
+
+  <div id="hud">
+    <div class="hudBox" id="moneyHud">💰 $0</div>
+    <div class="hudBox" id="bagHud">🎒 0 / 5</div>
+    <div class="hudBox" id="depthHud">⬇️ 0m</div>
+  </div>
+
+  <div id="message"></div>
+
+  <div id="controls">
+    <button class="controlBtn" id="upBtn">▲</button>
+    <button class="controlBtn" id="leftBtn">◀</button>
+    <button class="controlBtn" id="rightBtn">▶</button>
+    <button class="controlBtn" id="downBtn">▼</button>
+  </div>
+
+  <button id="shopButton">🛠️ SHOP</button>
+
+  <div id="shopPanel">
+    <div class="shopCard">
+      <h2>Upgrade Shop</h2>
+      <p>Sell ore at the surface, then improve your miner.</p>
+
+      <button class="upgrade" id="powerUpgrade"></button>
+      <button class="upgrade" id="bagUpgrade"></button>
+      <button class="upgrade" id="speedUpgrade"></button>
+
+      <button id="closeShop">Close</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+const moneyHud = document.getElementById("moneyHud");
+const bagHud = document.getElementById("bagHud");
+const depthHud = document.getElementById("depthHud");
+const messageBox = document.getElementById("message");
+
+const shopPanel = document.getElementById("shopPanel");
+
+const TILE = 48;
+
+let cols = 9;
+let rows = 80;
+
+let world = [];
+
+let cameraY = 0;
+
+let player = {
+  x: 4,
+  y: 0,
+  money: 0,
+
+  bag: 0,
+  bagMax: 5,
+
+  power: 1,
+  moveDelay: 170,
+
+  powerLevel: 1,
+  bagLevel: 1,
+  speedLevel: 1
+};
+
+let lastMove = 0;
+let messageTimer = null;
+
+const tileTypes = {
+  air: {
+    solid: false
+  },
+
+  dirt: {
+    color: "#81552f",
+    hp: 1,
+    value: 0,
+    solid: true
+  },
+
+  stone: {
+    color: "#666666",
+    hp: 2,
+    value: 0,
+    solid: true
+  },
+
+  copper: {
+    color: "#c87542",
+    hp: 2,
+    value: 4,
+    solid: true
+  },
+
+  silver: {
+    color: "#c6ccd3",
+    hp: 3,
+    value: 8,
+    solid: true
+  },
+
+  gold: {
+    color: "#e8b928",
+    hp: 4,
+    value: 15,
+    solid: true
+  }
+};
+
+function resize() {
+  const wrap = document.getElementById("gameWrap");
+
+  canvas.width = wrap.clientWidth * devicePixelRatio;
+  canvas.height = wrap.clientHeight * devicePixelRatio;
+
+  ctx.setTransform(
+    devicePixelRatio,
+    0,
+    0,
+    devicePixelRatio,
+    0,
+    0
+  );
+
+  cols = Math.floor(wrap.clientWidth / TILE);
+
+  if (cols < 7) cols = 7;
+
+  if (cols % 2 === 0) cols--;
+
+  if (!world.length) {
+    generateWorld();
+  }
+}
+
+window.addEventListener("resize", resize);
+
+function generateWorld() {
+
+  world = [];
+
+  player.x = Math.floor(cols / 2);
+
+  for (let y = 0; y < rows; y++) {
+
+    const row = [];
+
+    for (let x = 0; x < cols; x++) {
+
+      if (y === 0) {
+        row.push(makeTile("air"));
+        continue;
+      }
+
+      let type = "dirt";
+
+      const r = Math.random();
+
+      if (y > 4 && r < 0.10) {
+        type = "copper";
+      }
+
+      if (y > 12 && r < 0.06) {
+        type = "silver";
+      }
+
+      if (y > 24 && r < 0.035) {
+        type = "gold";
+      }
+
+      if (y > 10 && Math.random() < 0.14) {
+        type = "stone";
+      }
+
+      row.push(makeTile(type));
+    }
+
+    world.push(row);
+  }
+
+  // Clear a little starting shaft.
+  for (let y = 0; y <= 2; y++) {
+    world[y][player.x] = makeTile("air");
+  }
+}
+
+function makeTile(type) {
+
+  const data = tileTypes[type];
+
+  return {
+    type,
+    hp: data.hp || 0,
+    maxHp: data.hp || 0
+  };
+}
+
+function showMessage(text) {
+
+  messageBox.textContent = text;
+  messageBox.classList.add("show");
+
+  clearTimeout(messageTimer);
+
+  messageTimer = setTimeout(() => {
+    messageBox.classList.remove("show");
+  }, 1100);
+}
+
+function updateHud() {
+
+  moneyHud.textContent = `💰 $${player.money}`;
+  bagHud.textContent = `🎒 ${player.bag} / ${player.bagMax}`;
+  depthHud.textContent = `⬇️ ${player.y}m`;
+}
+
+function getTile(x, y) {
+
+  if (
+    y < 0 ||
+    y >= rows ||
+    x < 0 ||
+    x >= cols
+  ) {
+    return null;
+  }
+
+  return world[y][x];
+}
+
+function tryMove(dx, dy) {
+
+  const now = performance.now();
+
+  if (now - lastMove < player.moveDelay) {
+    return;
+  }
+
+  lastMove = now;
+
+  const tx = player.x + dx;
+  const ty = player.y + dy;
+
+  if (
+    tx < 0 ||
+    tx >= cols ||
+    ty < 0 ||
+    ty >= rows
+  ) {
+    return;
+  }
+
+  const tile = getTile(tx, ty);
+
+  if (!tile) return;
+
+  if (tile.type === "air") {
+
+    player.x = tx;
+    player.y = ty;
+
+    checkSurface();
+
+    return;
+  }
+
+  digTile(tx, ty);
+}
+
+function digTile(x, y) {
+
+  const tile = getTile(x, y);
+
+  if (!tile || tile.type === "air") {
+    return;
+  }
+
+  const info = tileTypes[tile.type];
+
+  tile.hp -= player.power;
+
+  if (tile.hp > 0) {
+    showMessage(`⛏️ ${tile.hp} hit${tile.hp === 1 ? "" : "s"} left`);
+    return;
+  }
+
+  if (info.value > 0) {
+
+    if (player.bag >= player.bagMax) {
+      tile.hp = 1;
+      showMessage("🎒 Backpack full!");
+      return;
+    }
+
+    player.bag++;
+
+    showMessage(
+      `${oreEmoji(tile.type)} ${capitalize(tile.type)} collected`
+    );
+  }
+
+  world[y][x] = makeTile("air");
+
+  player.x = x;
+  player.y = y;
+}
+
+function checkSurface() {
+
+  if (player.y !== 0) {
+    return;
+  }
+
+  if (player.bag > 0) {
+
+    // Prototype simplification:
+    // every ore currently sells for an average $6.
+    const earned = player.bag * 6;
+
+    player.money += earned;
+
+    showMessage(`💰 Sold ore for $${earned}`);
+
+    player.bag = 0;
+
+    updateShop();
+  }
+}
+
+function oreEmoji(type) {
+
+  if (type === "copper") return "🟠";
+  if (type === "silver") return "⚪";
+  if (type === "gold") return "🟡";
+
+  return "⛏️";
+}
+
+function capitalize(text) {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+function updateCamera() {
+
+  const viewHeight =
+    document.getElementById("gameWrap").clientHeight;
+
+  const playerScreenY =
+    player.y * TILE - cameraY;
+
+  const target =
+    viewHeight * 0.42;
+
+  if (playerScreenY > target) {
+
+    cameraY =
+      player.y * TILE -
+      target;
+  }
+
+  if (player.y < 5) {
+
+    cameraY *= 0.85;
+
+    if (cameraY < 1) {
+      cameraY = 0;
+    }
+  }
+
+  const maxCamera =
+    rows * TILE - viewHeight + TILE;
+
+  cameraY = Math.max(
+    0,
+    Math.min(cameraY, maxCamera)
+  );
+}
+
+function draw() {
+
+  const width =
+    document.getElementById("gameWrap").clientWidth;
+
+  const height =
+    document.getElementById("gameWrap").clientHeight;
+
+  ctx.clearRect(0, 0, width, height);
+
+  updateCamera();
+
+  drawBackground(width, height);
+  drawWorld(width, height);
+  drawPlayer();
+  drawSurface(width);
+
+  updateHud();
+
+  requestAnimationFrame(draw);
+}
+
+function drawBackground(width, height) {
+
+  ctx.fillStyle = "#89d1fa";
+  ctx.fillRect(0, 0, width, height);
+
+  const groundY = TILE - cameraY;
+
+  if (groundY < height) {
+
+    ctx.fillStyle = "#47301f";
+
+    ctx.fillRect(
+      0,
+      Math.max(groundY, 0),
+      width,
+      height
+    );
+  }
+}
+
+function drawSurface(width) {
+
+  const y = TILE - cameraY;
+
+  if (y < -TILE || y > innerHeight) {
+    return;
+  }
+
+  ctx.fillStyle = "#55a84f";
+
+  ctx.fillRect(
+    0,
+    y - 12,
+    width,
+    12
+  );
+
+  ctx.font = "24px Arial";
+
+  ctx.fillText(
+    "🏠",
+    8,
+    y - 18
+  );
+
+  ctx.font = "13px Arial";
+
+  ctx.fillStyle = "#222";
+
+  ctx.fillText(
+    "Surface = auto sell",
+    40,
+    y - 23
+  );
+}
+
+function drawWorld(width, height) {
+
+  const startRow =
+    Math.max(
+      0,
+      Math.floor(cameraY / TILE) - 1
+    );
+
+  const endRow =
+    Math.min(
+      rows,
+      startRow +
+      Math.ceil(height / TILE) +
+      3
+    );
+
+  for (let y = startRow; y < endRow; y++) {
+
+    for (let x = 0; x < cols; x++) {
+
+      const tile = world[y][x];
+
+      if (!tile || tile.type === "air") {
+        continue;
+      }
+
+      drawTile(
+        tile,
+        x * TILE,
+        y * TILE - cameraY,
+        x,
+        y
+      );
+    }
+  }
+}
+
+function drawTile(tile, px, py, x, y) {
+
+  const info = tileTypes[tile.type];
+
+  ctx.fillStyle = info.color;
+
+  ctx.fillRect(
+    px,
+    py,
+    TILE,
+    TILE
+  );
+
+  ctx.strokeStyle =
+    "rgba(0,0,0,0.18)";
+
+  ctx.strokeRect(
+    px,
+    py,
+    TILE,
+    TILE
+  );
+
+  if (tile.type === "dirt") {
+
+    ctx.fillStyle =
+      "rgba(0,0,0,0.11)";
+
+    ctx.beginPath();
+
+    ctx.arc(
+      px + 14,
+      py + 17,
+      3,
+      0,
+      Math.PI * 2
+    );
+
+    ctx.fill();
+
+    ctx.beginPath();
+
+    ctx.arc(
+      px + 34,
+      py + 32,
+      2,
+      0,
+      Math.PI * 2
+    );
+
+    ctx.fill();
+  }
+
+  if (
+    tile.type === "copper" ||
+    tile.type === "silver" ||
+    tile.type === "gold"
+  ) {
+
+    ctx.font = "22px Arial";
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    ctx.fillStyle = "#222";
+
+    ctx.fillText(
+      "◆",
+      px + TILE / 2,
+      py + TILE / 2
+    );
+
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+  }
+
+  if (
+    tile.maxHp > 1 &&
+    tile.hp < tile.maxHp
+  ) {
+
+    ctx.strokeStyle =
+      "rgba(30,30,30,0.7)";
+
+    ctx.lineWidth = 2;
+
+    ctx.beginPath();
+
+    ctx.moveTo(
+      px + TILE * 0.25,
+      py + TILE * 0.15
+    );
+
+    ctx.lineTo(
+      px + TILE * 0.55,
+      py + TILE * 0.52
+    );
+
+    ctx.lineTo(
+      px + TILE * 0.40,
+      py + TILE * 0.82
+    );
+
+    ctx.stroke();
+
+    ctx.lineWidth = 1;
+  }
+}
+
+function drawPlayer() {
+
+  const px =
+    player.x * TILE + TILE / 2;
+
+  const py =
+    player.y * TILE -
+    cameraY +
+    TILE / 2;
+
+  ctx.font = "34px Arial";
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  ctx.fillText(
+    "👷",
+    px,
+    py
+  );
+
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+}
+
+function updateShop() {
+
+  const powerCost =
+    player.powerLevel * 20;
+
+  const bagCost =
+    player.bagLevel * 18;
+
+  const speedCost =
+    player.speedLevel * 25;
+
+  document.getElementById("powerUpgrade").innerHTML =
+    `<strong>⛏️ Pick Power Lv.${player.powerLevel}</strong>
+    +1 digging damage — $${powerCost}`;
+
+  document.getElementById("bagUpgrade").innerHTML =
+    `<strong>🎒 Backpack Lv.${player.bagLevel}</strong>
+    +3 ore capacity — $${bagCost}`;
+
+  document.getElementById("speedUpgrade").innerHTML =
+    `<strong>⚡ Dig Speed Lv.${player.speedLevel}</strong>
+    Faster movement — $${speedCost}`;
+}
+
+document
+  .getElementById("powerUpgrade")
+  .addEventListener("click", () => {
+
+    const cost =
+      player.powerLevel * 20;
+
+    if (player.money < cost) {
+      showMessage("Not enough money");
+      return;
+    }
+
+    player.money -= cost;
+    player.power++;
+    player.powerLevel++;
+
+    updateShop();
+    updateHud();
+  });
+
+document
+  .getElementById("bagUpgrade")
+  .addEventListener("click", () => {
+
+    const cost =
+      player.bagLevel * 18;
+
+    if (player.money < cost) {
+      showMessage("Not enough money");
+      return;
+    }
+
+    player.money -= cost;
+    player.bagMax += 3;
+    player.bagLevel++;
+
+    updateShop();
+    updateHud();
+  });
+
+document
+  .getElementById("speedUpgrade")
+  .addEventListener("click", () => {
+
+    const cost =
+      player.speedLevel * 25;
+
+    if (player.money < cost) {
+      showMessage("Not enough money");
+      return;
+    }
+
+    player.money -= cost;
+
+    player.moveDelay =
+      Math.max(
+        65,
+        player.moveDelay - 20
+      );
+
+    player.speedLevel++;
+
+    updateShop();
+    updateHud();
+  });
+
+document
+  .getElementById("shopButton")
+  .addEventListener("click", () => {
+
+    updateShop();
+
+    shopPanel.classList.add("open");
+  });
+
+document
+  .getElementById("closeShop")
+  .addEventListener("click", () => {
+
+    shopPanel.classList.remove("open");
+  });
+
+function bindButton(id, dx, dy) {
+
+  const button =
+    document.getElementById(id);
+
+  let interval = null;
+
+  function start(e) {
+
+    e.preventDefault();
+
+    tryMove(dx, dy);
+
+    clearInterval(interval);
+
+    interval =
+      setInterval(() => {
+
+        tryMove(dx, dy);
+
+      }, 80);
+  }
+
+  function stop() {
+
+    clearInterval(interval);
+
+    interval = null;
+  }
+
+  button.addEventListener(
+    "pointerdown",
+    start
+  );
+
+  button.addEventListener(
+    "pointerup",
+    stop
+  );
+
+  button.addEventListener(
+    "pointercancel",
+    stop
+  );
+
+  button.addEventListener(
+    "pointerleave",
+    stop
+  );
+}
+
+bindButton("upBtn", 0, -1);
+bindButton("downBtn", 0, 1);
+bindButton("leftBtn", -1, 0);
+bindButton("rightBtn", 1, 0);
+
+document.addEventListener(
+  "keydown",
+  e => {
+
+    if (shopPanel.classList.contains("open")) {
+      return;
+    }
+
+    if (
+      e.key === "ArrowUp" ||
+      e.key.toLowerCase() === "w"
+    ) {
+      tryMove(0, -1);
+    }
+
+    if (
+      e.key === "ArrowDown" ||
+      e.key.toLowerCase() === "s"
+    ) {
+      tryMove(0, 1);
+    }
+
+    if (
+      e.key === "ArrowLeft" ||
+      e.key.toLowerCase() === "a"
+    ) {
+      tryMove(-1, 0);
+    }
+
+    if (
+      e.key === "ArrowRight" ||
+      e.key.toLowerCase() === "d"
+    ) {
+      tryMove(1, 0);
+    }
+  }
+);
+
+// Swipe controls directly on the game.
+let touchStartX = 0;
+let touchStartY = 0;
+
+canvas.addEventListener(
+  "pointerdown",
+  e => {
+
+    touchStartX = e.clientX;
+    touchStartY = e.clientY;
+  }
+);
+
+canvas.addEventListener(
+  "pointerup",
+  e => {
+
+    const dx =
+      e.clientX - touchStartX;
+
+    const dy =
+      e.clientY - touchStartY;
+
+    const distance =
+      Math.hypot(dx, dy);
+
+    if (distance < 25) {
+      return;
+    }
+
+    if (Math.abs(dx) > Math.abs(dy)) {
+
+      if (dx > 0) {
+        tryMove(1, 0);
+      } else {
+        tryMove(-1, 0);
+      }
+
+    } else {
+
+      if (dy > 0) {
+        tryMove(0, 1);
+      } else {
+        tryMove(0, -1);
+      }
+    }
+  }
+);
+
+resize();
+updateHud();
+updateShop();
+draw();
+
+showMessage("⛏️ Dig down. Get rich.");
+</script>
+
+</body>
+  </html>
